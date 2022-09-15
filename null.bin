@@ -1,0 +1,88 @@
+const float offset = 0.483;
+int pout = 0;
+int pin = 0;
+const int inputPressurePin = A0;
+const int outputPressurePin = A1;
+//const int waterFlowSensorPin = A2;
+
+float inputPressureVoltage = 0;
+float outputPressureVoltage = 0;
+float waterFlowSensorVoltage = 0;
+
+const int leakageIndicator = 12;
+const int noFlowIndicator = 11;
+const int normalOperationIndicator = 10;
+
+
+
+volatile int NbTopsFan; //measuring the rising edges of the signal
+int Calc;                               
+const int hallsensor = 2;    //The pin location of the sensor
+
+void rpm ()     //This is the function that the interupt calls 
+{ 
+ NbTopsFan++;  //This function measures the rising and falling edge of the hall effect sensors signal
+
+
+}
+
+
+void setup()
+{
+  Serial.begin(9600);
+  pinMode(hallsensor, INPUT); //initializes digital pin 2 as an input
+  pinMode(inputPressurePin, INPUT);
+  pinMode(outputPressurePin, INPUT);
+
+  attachInterrupt(0, rpm, RISING); //and the interrupt is attached
+}
+
+void loop()
+{
+
+
+  inputPressureVoltage = analogRead(inputPressurePin) * 5.00 / 1024;
+  pin = (inputPressureVoltage) * 400;
+  outputPressureVoltage = analogRead(outputPressurePin) * 5.00 / 1024;
+  pout = (outputPressureVoltage) * 400;
+  //waterFlowSensorVoltage = analogRead(waterFlowSensorPin) * 5.00 / 1024;
+
+  NbTopsFan = 0;      //Set NbTops to 0 ready for calculations
+  sei();            //Enables interrupts
+  delay (1000);      //Wait 1 second
+  cli();            //Disable interrupts
+  Calc = (NbTopsFan * 60 / 7.5); //(Pulse frequency x 60) / 7.5Q, = flow rate in L/hour 
+ 
+  Serial.println(pin);
+  Serial.println(pout);
+  Serial.println(NbTopsFan);
+  Serial.println(millis() / 1000);
+  if (pin > pout && Calc > 0)
+  {
+    if (pout < (pin * 0.5)){
+      Serial.println("Abnormal Pressure Variation!");
+      Serial.println("Leakage Detected");
+      digitalWrite(leakageIndicator, HIGH);
+      Serial.println("");
+      delay(1000);
+    }
+     else{
+      digitalWrite(normalOperationIndicator, HIGH);
+      Serial.println("Norma Operation");
+      delay(1000);
+     }
+  }
+  else if (Calc <= 0)
+  {
+    Serial.println("No Water Flow!");
+    
+    if (pin != pout)
+    {
+      Serial.println("Abnormal Pressure Variation!");
+      Serial.println("Leakage Detected");
+      digitalWrite(noFlowIndicator, HIGH);
+      Serial.println(""); 
+      delay(1000);
+    }
+  }
+}                                                                           
